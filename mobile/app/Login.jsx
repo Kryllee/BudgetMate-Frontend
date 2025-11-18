@@ -1,0 +1,284 @@
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
+import { Link } from "expo-router";
+
+const Login = () => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  const handleLogin = () => {
+    console.log('Username:', username);
+    console.log('Password:', password);
+    console.log('Remember Me:', rememberMe);
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar style="light" />
+
+      <View style={styles.upper}>
+        <Text style={styles.big}>Sign in to your{'\n'}Account</Text>
+        <Text style={styles.small}>Enter your email and password to login</Text>
+      </View>
+
+      <View style={styles.lower}>
+        <LinearGradient
+          colors={['#E3823C', '#47447D']}
+          locations={[0.1, 0.95]}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
+
+      {/* Login Box */}
+      <View style={styles.box}>
+        <TouchableOpacity style={styles.google}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Image
+              source={require('../assets/images/googlelogo.png')}
+              style={{ width: 25, height: 25 }}
+            />
+            <Text style={styles.googleText}>Continue with Google</Text>
+          </View>
+        </TouchableOpacity>
+
+        <Text style={styles.orText}>Or login with</Text>
+
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          placeholder="Username or Email"
+          keyboardType="email-address"
+          style={styles.input}
+          onChangeText={setUsername}
+          value={username}
+        />
+
+        <Text style={styles.label}>Password</Text>
+
+        {/* Password input with eye icon */}
+        <View>
+          <TextInput
+            placeholder="Password"
+            secureTextEntry={!showPassword}
+            style={styles.input}
+            onChangeText={setPassword}
+            value={password}
+          />
+
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.eyeIcon}
+          >
+            <MaterialIcons
+              name={showPassword ? 'visibility' : 'visibility-off'}
+              size={24}
+              color="#555"
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Rounded custom checkbox */}
+        <View style={styles.options}>
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setRememberMe(!rememberMe)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, rememberMe && styles.checkedBox]}>
+              {rememberMe && (
+                <MaterialIcons name="check" size={16} color="#fff" />
+              )}
+            </View>
+
+            <Text style={styles.rememberText}>Remember me</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity>
+            <Text style={styles.forgot}>Forgot Password?</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.button} onPress={handleLogin}>
+          <Text style={styles.buttonText}>Login</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.signup}>
+          Don't have an account?
+          <Link style={styles.signUpLink} href="/Signup"> Sign Up</Link>
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { 
+    flex: 1, 
+    backgroundColor: '#141326'
+  },
+
+  upper: { 
+    flex: 1,  
+    alignItems: 'center', 
+  },
+
+  lower: { 
+    flex: 1,
+  },
+
+  box: {
+    width: '90%',
+    backgroundColor: '#ffffff',
+    borderRadius: 30,
+    padding: 20,
+    position: 'absolute',
+    top: 215,
+    alignSelf: 'center',
+  },
+
+  big: {
+    color: '#ffffff',
+    fontSize: 32,
+    fontWeight: '600',
+    textAlign: 'center',
+    position: 'absolute',
+    top: 75,
+  },
+
+  small: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '400',
+    textAlign: 'center',
+    position: 'absolute',
+    top: 160,
+  },
+
+  google: {
+    width: '100%',
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#969696',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 10,
+  },
+
+  googleText: { 
+    marginLeft: 10, 
+    fontSize: 18,
+    fontWeight: '500',
+  },
+
+  orText: { 
+    textAlign: 'center', 
+    marginTop: 10,
+    marginBottom: 15,
+    color: '#555', 
+  },
+
+  label: {  
+    marginBottom: 5, 
+    fontWeight: '500',
+  },
+  
+  input: {
+    borderWidth: 1,
+    borderColor: '#969696',
+    borderRadius: 8,
+    padding: 10,
+    paddingRight: 45,
+    fontSize: 16,
+    marginBottom: 10,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 10,
+  },
+
+  eyeIcon: {
+    position: 'absolute',
+    right: 8,
+    top: '10%',
+    padding: 5,
+  },
+
+  options: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderWidth: 1.2,
+    borderColor: '#000',
+    borderRadius: 7,   
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+
+  checkedBox: {
+    backgroundColor: '#1300BC',
+    borderColor: '#1300BC',
+  },
+
+  rememberText: {
+    fontSize: 14,
+  },
+
+  forgot: { 
+    color: '#1300BC', 
+  },
+
+  button: { 
+    backgroundColor: '#1300BC', 
+    padding: 15, 
+    borderRadius: 10, 
+    alignItems: 'center', 
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 10,                           
+  },
+
+  buttonText: { 
+    color: '#fff', 
+    fontWeight: '600', 
+    fontSize: 16,
+  },
+
+  signup: { 
+    textAlign: 'center', 
+    color: '#555', 
+  },
+  
+  signUpLink: { 
+    color: '#0000EE', 
+    fontWeight: '600',
+  },
+});
+
+export default Login;
