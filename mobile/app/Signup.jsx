@@ -11,6 +11,7 @@ const SignUp = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSignUp = () => {
     console.log('Username:', username);
@@ -79,17 +80,17 @@ const SignUp = () => {
         <View>
           <TextInput
             placeholder="Confirm Password"
-            secureTextEntry={!showPassword}
+            secureTextEntry={!showConfirmPassword}
             style={styles.input}
             onChangeText={setConfirmPassword}
             value={confirmPassword}
           />
           <TouchableOpacity
-            onPress={() => setShowPassword(!showPassword)}
+            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
             style={styles.eyeIcon}
           >
             <MaterialIcons
-              name={showPassword ? 'visibility' : 'visibility-off'}
+              name={showConfirmPassword ? 'visibility' : 'visibility-off'}
               size={24}
               color="#555"
             />
