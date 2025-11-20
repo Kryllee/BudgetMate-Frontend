@@ -72,7 +72,8 @@ const SignUp = () => {
     console.log('Email:', email);
     console.log('Password:', password);
 
-    router.replace("/(tabs)/home");
+    // After successful sign up, go to onboarding to collect budget details
+    router.replace('/BudgetOnboarding');
   };
 
   return (
