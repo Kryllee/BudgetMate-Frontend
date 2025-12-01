@@ -1,37 +1,38 @@
 import React, { useState, useCallback } from "react";
-import { SafeAreaView, View, ScrollView, Image, Text, TouchableOpacity, StyleSheet, Dimensions, Modal } from "react-native";
+import { SafeAreaView, View, ScrollView, Image, Text, TouchableOpacity, StyleSheet, Dimensions, Modal, Alert } from "react-native";
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { scale, verticalScale, moderateScale } from '../../src/responsive';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { api } from '../../src/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Color Palette (Matching Community.jsx) 
 const COLORS = {
-    background: '#141326',
-    cardBg: '#433DA3',
-    primary: '#E3823C',
-    accent: '#E33C3C',
-    text: '#FFFFFF',
-    textSecondary: '#D7C7EC',
-    yellow: '#FFC107',
+  background: '#141326',
+  cardBg: '#433DA3',
+  primary: '#E3823C',
+  accent: '#E33C3C',
+  text: '#FFFFFF',
+  textSecondary: '#D7C7EC',
+  yellow: '#FFC107',
+  inputBg: '#2B2769',
 };
 
-// Custom Component for Circular Progress
-const CircleProgress = ({ percent, target, saved }) => {
-  return (
-    <View style={circleStyles.wrapper}>
-      <View style={circleStyles.circlePlaceholder}>
-        <View style={[circleStyles.progressArc, { transform: [{ rotateZ: `${(percent * 3.6) - 90}deg` }] }]} />
-        <Text style={circleStyles.percentText}>{percent}%</Text>
-      </View>
-      <Text style={circleStyles.infoText}>Target: ₱{target.toLocaleString()}</Text>
-      <Text style={circleStyles.infoText}>Saved: ₱{saved.toLocaleString()}</Text>
+const MenuItem = ({ icon, label, value, onPress, isDestructive = false }) => (
+  <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
+    <View style={styles.menuIconWrapper}>
+      <MaterialIcons name={icon} size={moderateScale(22)} color={isDestructive ? COLORS.accent : COLORS.yellow} />
     </View>
-  );
-};
+    <View style={styles.menuContent}>
+      <Text style={[styles.menuLabel, isDestructive && styles.destructiveLabel]}>{label}</Text>
+      {value && <Text style={styles.menuValue}>{value}</Text>}
+    </View>
+    <MaterialIcons name="chevron-right" size={moderateScale(24)} color={COLORS.textSecondary} />
+  </TouchableOpacity>
+);
 
 export default function Profile() {
   const [username, setUsername] = useState('User');
@@ -39,15 +40,29 @@ export default function Profile() {
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const router = useRouter();
 
-  const targetAmount = 10000;
-  const savedAmount = 6500;
-  const progressPercent = Math.round((savedAmount / targetAmount) * 100);
+  const [budgetData, setBudgetData] = useState(null);
+  const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
-      loadUserData();
+      loadData();
     }, [])
   );
+
+  const loadData = async () => {
+    try {
+      await Promise.all([
+        loadUserData(),
+        loadBudgetData(),
+        loadExpenses(),
+      ]);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -62,22 +77,43 @@ export default function Profile() {
     }
   };
 
+  const loadBudgetData = async () => {
+    try {
+      const savedData = await AsyncStorage.getItem('userBudget');
+      if (savedData != null) {
+        setBudgetData(JSON.parse(savedData));
+      }
+    } catch (error) {
+      console.error('Failed to load budget data', error);
+    }
+  };
+
+  const loadExpenses = async () => {
+    try {
+      const response = await api.get('/api/expenses');
+      setExpenses(response.data);
+    } catch (error) {
+      console.error('Failed to load expenses', error);
+    }
+  };
+
+  // --- Calculations ---
+  // Emergency Fund
+  const emergencyFundTarget = budgetData?.emergencyFundGoal || 10000;
+  const emergencyFundSaved = expenses
+    .filter(item => item.category === 'Savings')
+    .reduce((sum, item) => sum + item.amount, 0);
+  const emergencyProgress = Math.min(Math.round((emergencyFundSaved / emergencyFundTarget) * 100), 100);
+
   const handleLogout = () => {
     setLogoutModalVisible(true);
   };
 
   const confirmLogout = async () => {
     try {
-      // Clear all user data from AsyncStorage
       await AsyncStorage.removeItem('userData');
       await AsyncStorage.removeItem('userBudget');
-      
-      // Clear auth token
       global.authToken = null;
-      
-      console.log("User logged out successfully");
-      
-      // Close modal and navigate to login screen
       setLogoutModalVisible(false);
       router.replace('/');
     } catch (error) {
@@ -90,10 +126,32 @@ export default function Profile() {
     setLogoutModalVisible(false);
   };
 
+  const handlePersonalInfo = () => {
+    Alert.alert('Coming Soon', 'Personal info editing feature will be available soon!');
+  };
+
+  const handleSettings = () => {
+    router.push('/EditBudget');
+  };
+
+  const handleEmergencyFundClick = () => {
+    Alert.alert(
+      'Emergency Fund',
+      `Current Progress: ${emergencyProgress}%\nSaved: ₱${emergencyFundSaved.toLocaleString()}\nTarget: ₱${emergencyFundTarget.toLocaleString()}`,
+      [
+        { text: 'Close', style: 'cancel' },
+        {
+          text: 'Update Target',
+          onPress: () => router.push('/EditBudget')
+        }
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar style="light" backgroundColor={COLORS.background} translucent={false} />
-      
+
       {/* Custom Logout Modal */}
       <Modal
         animationType="fade"
@@ -108,32 +166,18 @@ export default function Profile() {
               locations={[0.1, 0.45, 0.75]}
               style={styles.gradientFill}
             />
-            
             <Text style={styles.modalTitle}>Log Out</Text>
-            <Text style={styles.modalText}>
-              Are you sure you want to log out?
-            </Text>
-            
+            <Text style={styles.modalText}>Are you sure you want to log out?</Text>
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.cancelButtonWrapper}
-                onPress={cancelLogout}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={styles.cancelButtonWrapper} onPress={cancelLogout}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.logoutConfirmWrapper}
-                onPress={confirmLogout}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={styles.logoutConfirmWrapper} onPress={confirmLogout}>
                 <LinearGradient
                   colors={['#E33C3C', '#E3823C']}
-                  locations={[0.1, 0.95]}
+                  style={styles.gradientBtn}
                   start={{ x: 0, y: 0.5 }}
                   end={{ x: 1, y: 0.5 }}
-                  style={styles.gradientBtn}
                 />
                 <Text style={styles.logoutConfirmText}>Log Out</Text>
               </TouchableOpacity>
@@ -141,112 +185,82 @@ export default function Profile() {
           </View>
         </View>
       </Modal>
-      
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.avatarWrapper}>
-            <Image 
-              source={{uri: "https://storage.googleapis.com/tagjs-prod.appspot.com/v1/N2yyWBWpxG/oi83aoen_expires_30_days.png"}} 
-              style={styles.avatarImage} 
+
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* Header Profile Card */}
+        <View style={styles.headerCard}>
+          <LinearGradient
+            colors={['#433DA3', '#2B2769']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerGradient}
+          />
+          <View style={styles.avatarContainer}>
+            <Image
+              source={{ uri: "https://storage.googleapis.com/tagjs-prod.appspot.com/v1/N2yyWBWpxG/oi83aoen_expires_30_days.png" }}
+              style={styles.avatarImage}
               resizeMode="contain"
             />
           </View>
           <Text style={styles.name}>{username}</Text>
           <Text style={styles.email}>{email}</Text>
-          <Text style={styles.quote}>"Budgeting is the key to financial freedom"</Text>
         </View>
 
-        {/* Personal Info Button */}
-        <TouchableOpacity style={styles.buttonRow} activeOpacity={0.7}>
-          <Text style={styles.buttonLabel}>Personal Info</Text>
-          <Text style={styles.arrow}>›</Text>
-        </TouchableOpacity>
-
-        {/* Goals + Emergency Fund Row */}
-        <View style={styles.row}>
-          <View style={[styles.card, styles.myGoalCard]}>
-            <Text style={styles.cardTitle}>My Goal</Text>
-            <Text style={styles.cardSubtitle}>"Dream Car"</Text>
+        {/* Menu Section */}
+        <View style={styles.menuContainer}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <View style={styles.menuGroup}>
+            <MenuItem
+              icon="person"
+              label="Personal Information"
+              onPress={handlePersonalInfo}
+            />
+            <MenuItem
+              icon="settings"
+              label="Budget Settings"
+              onPress={handleSettings}
+            />
           </View>
 
-          <View style={[styles.card, styles.emergencyCard]}>
-            <Text style={styles.cardTitleEmergency}>  Emergency {'\n'}        Fund</Text>
-            <CircleProgress
-              percent={progressPercent}
-              target={targetAmount}
-              saved={savedAmount}
+          <Text style={styles.sectionTitle}>Finance</Text>
+          <View style={styles.menuGroup}>
+            <MenuItem
+              icon="savings"
+              label="Emergency Fund"
+              value={`${emergencyProgress}%`}
+              onPress={handleEmergencyFundClick}
+            />
+          </View>
+
+          <Text style={styles.sectionTitle}>More</Text>
+          <View style={styles.menuGroup}>
+            <MenuItem
+              icon="help"
+              label="Help & Support"
+              onPress={() => Alert.alert('Coming Soon')}
             />
           </View>
         </View>
-
-        {/* Settings Button */}
-        <TouchableOpacity style={styles.buttonRow} activeOpacity={0.7}>
-          <Text style={styles.buttonLabel}>Settings and Preferences</Text>
-          <Text style={styles.arrow}>›</Text>
-        </TouchableOpacity>
 
         {/* Log out Button */}
         <TouchableOpacity style={styles.logoutButtonWrapper} activeOpacity={0.7} onPress={handleLogout}>
           <LinearGradient
             colors={[COLORS.accent, COLORS.primary]}
             style={styles.logoutButton}
-            start={{x: 0, y: 0}}
-            end={{x: 1, y: 0}}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
           >
             <Text style={styles.logoutText}>Log out</Text>
           </LinearGradient>
         </TouchableOpacity>
+
+        <Text style={styles.versionText}>BudgetMate v1.0.0</Text>
+
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const circleStyles = StyleSheet.create({
-  wrapper: {
-    alignItems: 'center',
-    flex: 1, 
-    justifyContent: 'center', 
-  },
-  circlePlaceholder: {
-    width: moderateScale(60),
-    height: moderateScale(60),
-    borderRadius: moderateScale(30),
-    backgroundColor: 'transparent',
-    borderWidth: moderateScale(5),
-    borderColor: 'rgba(255,255,255,0.15)', 
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: verticalScale(8),
-    overflow: 'hidden',
-  },
-  progressArc: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    borderRadius: moderateScale(30),
-    borderWidth: moderateScale(5),
-    borderColor: 'transparent',
-    borderTopColor: COLORS.yellow,
-    borderRightColor: COLORS.yellow,
-  },
-  percentText: {
-    fontSize: moderateScale(15),
-    fontFamily: 'Poppins-Bold',
-    color: COLORS.text,
-  },
-  infoText: {
-    fontSize: moderateScale(11),
-    fontFamily: 'Poppins-Regular',
-    color: COLORS.text,
-    textAlign: "center",
-    lineHeight: moderateScale(16),
-  },
-});
 
 const styles = StyleSheet.create({
   container: {
@@ -257,239 +271,189 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    flexGrow: 1,
-    paddingHorizontal: scale(20),
-    paddingTop: verticalScale(50),
-    paddingBottom: verticalScale(50),
-    maxWidth: 600,
-    width: '100%',
-    alignSelf: 'center',
+    paddingBottom: verticalScale(40),
   },
 
-  header: {
-    alignItems: "center",
-    marginBottom: verticalScale(32),
-  },
-
-  avatarWrapper: {
-    width: moderateScale(100),
-    height: moderateScale(100),
-    borderRadius: moderateScale(50),
+  // Header
+  headerCard: {
+    alignItems: 'center',
+    paddingVertical: verticalScale(30),
+    borderBottomLeftRadius: moderateScale(30),
+    borderBottomRightRadius: moderateScale(30),
+    overflow: 'hidden',
     marginBottom: verticalScale(20),
-    backgroundColor: COLORS.background,
-    borderWidth: moderateScale(3),
-    borderColor: COLORS.yellow,
+  },
+  headerGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  avatarContainer: {
+    width: moderateScale(90),
+    height: moderateScale(90),
+    borderRadius: moderateScale(45),
+    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden',
+    marginBottom: verticalScale(12),
+    borderWidth: 2,
+    borderColor: COLORS.yellow,
   },
   avatarImage: {
     width: '70%',
     height: '70%',
     tintColor: COLORS.yellow,
   },
-
   name: {
-    fontSize: moderateScale(24),
+    fontSize: moderateScale(22),
     fontFamily: 'Poppins-Bold',
-    color: COLORS.yellow,
+    color: COLORS.text,
     marginBottom: verticalScale(4),
   },
-
   email: {
     fontSize: moderateScale(14),
     fontFamily: 'Poppins-Regular',
     color: COLORS.textSecondary,
-    marginBottom: verticalScale(8),
   },
 
-  quote: {
-    fontSize: moderateScale(13),
-    fontFamily: 'Poppins-Regular',
-    color: COLORS.textSecondary,
-    textAlign: "center",
-  },
-
-  // --- Buttons (Personal Info, Settings) ---
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: COLORS.yellow,
-    paddingVertical: verticalScale(16),
+  // Menu
+  menuContainer: {
     paddingHorizontal: scale(20),
-    borderRadius: moderateScale(12),
-    marginBottom: verticalScale(16),
   },
-
-  buttonLabel: {
-    color: COLORS.text,
-    fontSize: moderateScale(15),
-    fontFamily: 'Poppins-Medium',
+  sectionTitle: {
+    fontSize: moderateScale(14),
+    fontFamily: 'Poppins-SemiBold',
+    color: COLORS.textSecondary,
+    marginBottom: verticalScale(10),
+    marginTop: verticalScale(10),
+    marginLeft: scale(4),
   },
-
-  arrow: {
-    color: COLORS.text,
-    fontSize: moderateScale(20),
-    fontFamily: 'Poppins-Regular',
-  },
-
-  // --- Cards ---
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: verticalScale(20),
-    gap: scale(12),
-  },
-
-  card: {
-    flex: 1,
-    backgroundColor: COLORS.cardBg,
-    padding: scale(16),
+  menuGroup: {
+    backgroundColor: '#1F1C3E',
     borderRadius: moderateScale(16),
-    minHeight: verticalScale(160),
+    overflow: 'hidden',
+    marginBottom: verticalScale(10),
   },
-  
-  myGoalCard: {
-    justifyContent: 'flex-start',
+  menuItem: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: verticalScale(16),
+    paddingHorizontal: scale(16),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
   },
-  
-  emergencyCard: {
-    justifyContent: 'flex-start',
+  menuIconWrapper: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(10),
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
     alignItems: 'center',
+    marginRight: scale(12),
   },
-
-  cardTitle: {
-    color: COLORS.yellow,
-    fontSize: moderateScale(16),
-    fontFamily: 'Poppins-SemiBold',
-    marginBottom: verticalScale(12),
+  menuContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginRight: scale(8),
   },
-  
-  cardTitleEmergency: {
-    color: COLORS.yellow,
-    fontSize: moderateScale(16),
-    fontFamily: 'Poppins-SemiBold',
-    marginBottom: verticalScale(1),
-  },
-
-  cardSubtitle: {
-    color: COLORS.text,
+  menuLabel: {
     fontSize: moderateScale(15),
     fontFamily: 'Poppins-Medium',
-    textAlign: 'center',
-  },
-
-  // --- Logout Button ---
-  logoutButtonWrapper: {
-    marginTop: verticalScale(4),
-    borderRadius: moderateScale(12),
-    overflow: 'hidden',
-  },
-  
-  logoutButton: {
-    paddingVertical: verticalScale(15),
-    borderRadius: moderateScale(12),
-    alignItems: "center",
-  },
-  
-  logoutText: {
     color: COLORS.text,
-    fontSize: moderateScale(15),
-    fontFamily: 'Poppins-SemiBold',
+  },
+  destructiveLabel: {
+    color: COLORS.accent,
+  },
+  menuValue: {
+    fontSize: moderateScale(14),
+    fontFamily: 'Poppins-Regular',
+    color: COLORS.yellow,
   },
 
-  // --- Custom Logout Modal ---
+  versionText: {
+    textAlign: 'center',
+    color: 'rgba(255,255,255,0.2)',
+    fontSize: moderateScale(12),
+    fontFamily: 'Poppins-Regular',
+    marginTop: verticalScale(20),
+  },
+
+  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
   modalContent: {
     width: '85%',
-    borderRadius: moderateScale(20),
+    borderRadius: moderateScale(24),
+    overflow: 'hidden',
     padding: scale(24),
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: verticalScale(10) },
-    shadowOpacity: 0.5,
-    shadowRadius: moderateScale(20),
-    elevation: 10,
-    overflow: 'hidden',
   },
-  
   gradientFill: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
   },
-  
   modalTitle: {
-    fontSize: moderateScale(24),
+    fontSize: moderateScale(20),
     fontFamily: 'Poppins-Bold',
-    color: COLORS.yellow,
+    color: COLORS.text,
     marginBottom: verticalScale(12),
   },
-  
   modalText: {
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(15),
     fontFamily: 'Poppins-Regular',
-    color: COLORS.text,
-    textAlign: 'center',
+    color: COLORS.textSecondary,
     marginBottom: verticalScale(24),
-    lineHeight: verticalScale(24),
+    textAlign: 'center',
   },
-  
   modalButtons: {
     flexDirection: 'row',
-    gap: scale(12),
     width: '100%',
+    gap: scale(12),
   },
-  
   cancelButtonWrapper: {
     flex: 1,
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: COLORS.textSecondary,
-    borderRadius: moderateScale(12),
     paddingVertical: verticalScale(12),
+    borderRadius: moderateScale(12),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
   },
-  
   cancelButtonText: {
-    color: COLORS.text,
-    fontSize: moderateScale(15),
-    fontFamily: 'Poppins-SemiBold',
+    color: COLORS.textSecondary,
+    fontFamily: 'Poppins-Medium',
   },
-  
   logoutConfirmWrapper: {
     flex: 1,
     borderRadius: moderateScale(12),
     overflow: 'hidden',
-    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  
   gradientBtn: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
   },
-  
   logoutConfirmText: {
+    fontSize: moderateScale(16),
     color: COLORS.text,
-    fontSize: moderateScale(15),
-    fontFamily: 'Poppins-SemiBold',
-    paddingVertical: verticalScale(14),
-    textAlign: 'center',
-    zIndex: 1,
+    fontFamily: 'Poppins-Bold',
+  },
+  logoutButtonWrapper: {
+    marginTop: verticalScale(20),
+    borderRadius: moderateScale(12),
+    overflow: 'hidden',
+    marginHorizontal: scale(20),
+  },
+  logoutButton: {
+    paddingVertical: verticalScale(16),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutText: {
+    fontSize: moderateScale(16),
+    fontFamily: 'Poppins-Bold',
+    color: COLORS.text,
   },
 });

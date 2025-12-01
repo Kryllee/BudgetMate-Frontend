@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { moderateScale } from '../src/responsive';
 import { styles, COLORS } from './_styles/BudgetOnboarding.styles';
+import { api } from '../src/api';
 
 // List of spending categories
 const SPENDING_CATEGORIES = [
@@ -33,6 +34,7 @@ export default function BudgetOnboarding() {
   const [savingsRate, setSavingsRate] = useState('');
   const [emergencyGoal, setEmergencyGoal] = useState('');
   const [annualGoal, setAnnualGoal] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // Go to next step
   function nextStep() {
@@ -76,16 +78,16 @@ export default function BudgetOnboarding() {
 
     if (incomeValue && rateValue && incomeValue > 0 && rateValue > 0) {
       const estimate = (incomeValue * rateValue) / 100;
-      return `That's ₱${estimate.toLocaleString()} per month`;
+      return `Estimated monthly savings: ₱${estimate.toLocaleString()}`;
     }
-
-    return 'Enter income and rate to see estimate';
+    return 'Enter a percentage to see estimated savings';
   }
 
-  // Save data and finish
+  // Finish Onboarding
   async function finishOnboarding() {
+    setLoading(true);
     const budgetData = {
-      monthlyIncome: parseFloat(income) || 0,
+      monthlyIncome: parseFloat(income),
       paymentFrequency: frequency,
       spendingCategories: categories,
       targetSavingsRate: parseFloat(savingsRate) || 0,
@@ -94,18 +96,30 @@ export default function BudgetOnboarding() {
     };
 
     try {
+      // 1. Save locally
       await AsyncStorage.setItem('userBudget', JSON.stringify(budgetData));
+
+      // 2. Save to backend
+      try {
+        await api.put('/api/budget', budgetData);
+        console.log('Budget data synced to backend');
+      } catch (apiError) {
+        console.error('Failed to sync budget to backend:', apiError);
+        // We don't block navigation if backend fails, but we log it
+      }
+
       router.replace('/(tabs)/home');
     } catch (error) {
       console.error('Error saving budget data:', error);
       Alert.alert('Error', 'Failed to save budget data');
+    } finally {
+      setLoading(false);
     }
   }
 
-  // Render radio button
+  // Render Radio Button
   function RadioButton({ label }) {
     const isSelected = frequency === label;
-
     return (
       <TouchableOpacity
         style={[styles.radioButton, isSelected && styles.radioButtonSelected]}
@@ -121,7 +135,7 @@ export default function BudgetOnboarding() {
     );
   }
 
-  // Render category button
+  // Render Category Button
   function CategoryButton({ label }) {
     const isSelected = categories.includes(label);
 
@@ -142,16 +156,26 @@ export default function BudgetOnboarding() {
     );
   }
 
-  // Render navigation buttons
+  // Render Navigation Buttons
   function NavigationButtons() {
     return (
       <View style={styles.navigationButtons}>
         <TouchableOpacity style={styles.backButton} onPress={previousStep}>
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.nextButton} onPress={nextStep}>
-          <Text style={styles.nextButtonText}>Next</Text>
-        </TouchableOpacity>
+        {step === 4 ? (
+          <TouchableOpacity
+            style={[styles.doneButton, loading && { opacity: 0.7 }]}
+            onPress={finishOnboarding}
+            disabled={loading}
+          >
+            <Text style={styles.nextButtonText}>{loading ? 'Saving...' : 'Done'}</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.nextButton} onPress={nextStep}>
+            <Text style={styles.nextButtonText}>Next</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -311,14 +335,7 @@ export default function BudgetOnboarding() {
             <Text style={styles.helperText}>Your target amount to save in a year</Text>
           </ScrollView>
 
-          <View style={styles.navigationButtons}>
-            <TouchableOpacity style={styles.backButton} onPress={previousStep}>
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.doneButton} onPress={finishOnboarding}>
-              <Text style={styles.nextButtonText}>Done</Text>
-            </TouchableOpacity>
-          </View>
+          <NavigationButtons />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
