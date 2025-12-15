@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -19,21 +19,12 @@ const COLORS = {
     yellow: '#FFC107',
 };
 
-const CATEGORIES = [
-    'Housing',
-    'Food',
-    'Transportation',
-    'Utilities',
-    'Entertainment',
-    'Healthcare',
-    'Shopping',
-    'Subscription',
-    'Savings',
-    'Other',
-];
+
 
 export default function AddExpense() {
     const router = useRouter();
+    const [categories, setCategories] = useState([]);
+    const [customCategory, setCustomCategory] = useState('');
     const [amount, setAmount] = useState('');
     const [category, setCategory] = useState('');
     const [description, setDescription] = useState('');
@@ -43,6 +34,28 @@ export default function AddExpense() {
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
     const [alertVisible, setAlertVisible] = useState(false);
+    const [successVisible, setSuccessVisible] = useState(false);
+
+    useEffect(() => {
+        fetchCategories();
+    }, []);
+
+    const fetchCategories = async () => {
+        try {
+            const response = await api.get('/api/categories');
+            let data = response.data;
+            // Extract names if data is array of objects
+            const catNames = data.map(item => item.name);
+
+            // Ensure 'Other' is at the end
+            const filtered = catNames.filter(c => c !== 'Other');
+            setCategories([...filtered, 'Other']);
+        } catch (error) {
+            console.error('Failed to fetch categories:', error);
+            // Fallback
+            setCategories(['Housing', 'Food', 'Transportation', 'Utilities', 'Other']);
+        }
+    };
 
     const params = useLocalSearchParams(); // Get the variables passed from the previous screen
     const currentBalance = params.currentBalance; // This is the available balance we passed from Home
@@ -75,6 +88,8 @@ export default function AddExpense() {
         // Check if a category is selected
         if (!category) {
             currentErrors.category = 'Category is required';
+        } else if (category === 'Other' && !customCategory.trim()) {
+            currentErrors.customCategory = 'Please specify the category';
         }
 
         // If there are errors, stop here and show them
@@ -85,20 +100,17 @@ export default function AddExpense() {
 
         setLoading(true);
 
+        const finalCategory = category === 'Other' ? customCategory.trim() : category;
+
         try {
             const response = await api.post('/api/expenses', {
                 amount: parseFloat(amount),
-                category,
+                category: finalCategory,
                 description,
                 date: date.toISOString(),
             });
 
-            Alert.alert('Success', 'Expense added successfully!', [
-                {
-                    text: 'OK',
-                    onPress: () => router.back(),
-                },
-            ]);
+            setSuccessVisible(true);
         } catch (error) {
             console.error('Error adding expense:', error);
             Alert.alert('Error', error.response?.data?.msg || 'Failed to add expense');
@@ -173,7 +185,7 @@ export default function AddExpense() {
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Category *</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                        {CATEGORIES.map((cat) => (
+                        {categories.map((cat) => (
                             <TouchableOpacity
                                 key={cat}
                                 style={[
@@ -198,6 +210,23 @@ export default function AddExpense() {
                         ))}
                     </ScrollView>
                     {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
+
+                    {/* Custom Category Input */}
+                    {category === 'Other' && (
+                        <View style={[styles.inputContainer, { marginTop: verticalScale(16) }, errors.customCategory && styles.inputError]}>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Enter category name"
+                                placeholderTextColor={COLORS.textSecondary}
+                                value={customCategory}
+                                onChangeText={(text) => {
+                                    setCustomCategory(text);
+                                    if (errors.customCategory) setErrors({ ...errors, customCategory: null });
+                                }}
+                            />
+                        </View>
+                    )}
+                    {category === 'Other' && errors.customCategory && <Text style={styles.errorText}>{errors.customCategory}</Text>}
                 </View>
 
                 {/* Date and Time Pickers */}
@@ -273,6 +302,17 @@ export default function AddExpense() {
                 title="Insufficient Balance"
                 message="You cannot add this expense because it exceeds your available balance."
                 onClose={() => setAlertVisible(false)}
+            />
+
+            <CustomAlert
+                visible={successVisible}
+                title="Success"
+                message="Expense added successfully!"
+                type="success"
+                onClose={() => {
+                    setSuccessVisible(false);
+                    router.back();
+                }}
             />
         </SafeAreaView>
     );

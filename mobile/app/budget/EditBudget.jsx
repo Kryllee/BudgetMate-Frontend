@@ -7,6 +7,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { scale, verticalScale, moderateScale } from '../../src/utils/responsive';
 import { api } from '../../src/api/api';
+import CustomAlert from '../../src/components/ui/CustomAlert';
 
 const COLORS = {
     background: '#141326',
@@ -22,6 +23,8 @@ export default function EditBudget() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', type: 'error' });
+    const [successVisible, setSuccessVisible] = useState(false);
 
     const [income, setIncome] = useState('');
     const [savingsRate, setSavingsRate] = useState('');
@@ -44,7 +47,12 @@ export default function EditBudget() {
             }
         } catch (error) {
             console.error('Failed to load budget data', error);
-            Alert.alert('Error', 'Failed to load current settings');
+            setAlertConfig({
+                visible: true,
+                title: 'Error',
+                message: 'Failed to load current settings',
+                type: 'error'
+            });
         } finally {
             setLoading(false);
         }
@@ -55,7 +63,12 @@ export default function EditBudget() {
     const handleSave = async () => {
         // 1. Validation
         if (!income || parseFloat(income) <= 0) {
-            Alert.alert('Error', 'Please enter a valid monthly income');
+            setAlertConfig({
+                visible: true,
+                title: 'Error',
+                message: 'Please enter a valid monthly income',
+                type: 'error'
+            });
             return;
         }
 
@@ -85,12 +98,15 @@ export default function EditBudget() {
                 // Continue since local save worked
             }
 
-            Alert.alert('Success', 'Budget settings updated!', [
-                { text: 'OK', onPress: () => router.back() }
-            ]);
+            setSuccessVisible(true);
         } catch (error) {
             console.error('Failed to save budget data', error);
-            Alert.alert('Error', 'Failed to save changes');
+            setAlertConfig({
+                visible: true,
+                title: 'Error',
+                message: 'Failed to save changes',
+                type: 'error'
+            });
         } finally {
             setSaving(false);
         }
@@ -199,6 +215,27 @@ export default function EditBudget() {
                 </TouchableOpacity>
 
             </ScrollView>
+
+            {/* General Alert */}
+            <CustomAlert
+                visible={alertConfig.visible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                type={alertConfig.type}
+                onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+            />
+
+            {/* Success Alert */}
+            <CustomAlert
+                visible={successVisible}
+                title="Success"
+                message="Budget settings updated!"
+                type="success"
+                onClose={() => {
+                    setSuccessVisible(false);
+                    router.back();
+                }}
+            />
         </SafeAreaView>
     );
 }

@@ -4,7 +4,17 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
-const CustomAlert = ({ visible, title, message, onClose, type = 'error' }) => {
+const CustomAlert = ({
+    visible,
+    title,
+    message,
+    onClose,
+    type = 'error',
+    showCancel = false,
+    onConfirm = null,
+    confirmText = 'OK',
+    cancelText = 'Cancel'
+}) => {
     if (!visible) return null;
 
     const getIcon = () => {
@@ -39,13 +49,33 @@ const CustomAlert = ({ visible, title, message, onClose, type = 'error' }) => {
                     <Text style={styles.title}>{title}</Text>
                     <Text style={styles.message}>{message}</Text>
 
-                    <TouchableOpacity
-                        style={[styles.button, { backgroundColor: getColor() }]}
-                        onPress={onClose}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.buttonText}>OK</Text>
-                    </TouchableOpacity>
+                    <View style={styles.buttonContainer}>
+                        {showCancel && (
+                            <TouchableOpacity
+                                style={[styles.button, styles.cancelButton]}
+                                onPress={onClose}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.cancelButtonText}>{cancelText}</Text>
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                            style={[
+                                styles.button,
+                                showCancel ? styles.flexButton : { width: '100%' },
+                                { backgroundColor: getColor() }
+                            ]}
+                            onPress={() => {
+                                if (onConfirm) {
+                                    onConfirm();
+                                }
+                                onClose();
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={styles.buttonText}>{confirmText}</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
         </Modal>
@@ -98,17 +128,35 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         marginBottom: 24,
     },
-    button: {
+    buttonContainer: {
+        flexDirection: 'row',
         width: '100%',
+        gap: 12,
+    },
+    button: {
         paddingVertical: 14,
         borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
     },
+    flexButton: {
+        flex: 1,
+    },
+    cancelButton: {
+        flex: 1,
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: '#D7C7EC',
+    },
     buttonText: {
         fontSize: 16,
         fontFamily: 'Poppins-SemiBold',
         color: '#FFFFFF',
+    },
+    cancelButtonText: {
+        fontSize: 16,
+        fontFamily: 'Poppins-SemiBold',
+        color: '#D7C7EC',
     },
 });
 

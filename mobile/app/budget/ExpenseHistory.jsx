@@ -6,6 +6,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { scale, verticalScale, moderateScale } from '../../src/utils/responsive';
 import { api } from '../../src/api/api';
+import CustomAlert from '../../src/components/ui/CustomAlert';
 
 const COLORS = {
     background: '#141326',
@@ -22,6 +23,9 @@ export default function ExpenseHistory() {
     const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [deleteAlertVisible, setDeleteAlertVisible] = useState(false);
+    const [successAlertVisible, setSuccessAlertVisible] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState(null);
 
     useFocusEffect(
         useCallback(() => {
@@ -49,30 +53,28 @@ export default function ExpenseHistory() {
 
     // Action: Delete Expense
     // Asks for confirmation before removing an item permanently.
+    // Action: Delete Expense
+    // Asks for confirmation before removing an item permanently.
     const handleDelete = (id) => {
-        Alert.alert(
-            'Delete Expense',
-            'Are you sure you want to delete this expense?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    // Logic to run if user confirms
-                    onPress: async () => {
-                        try {
-                            await api.delete(`/api/expenses/${id}`);
-                            // Update local state by removing the item
-                            setExpenses(expenses.filter(exp => exp._id !== id));
-                            Alert.alert('Success', 'Expense deleted');
-                        } catch (error) {
-                            console.error('Error deleting expense:', error);
-                            Alert.alert('Error', 'Failed to delete expense');
-                        }
-                    },
-                },
-            ]
-        );
+        setItemToDelete(id);
+        setDeleteAlertVisible(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+
+        try {
+            await api.delete(`/api/expenses/${itemToDelete}`);
+            // Update local state by removing the item
+            setExpenses(expenses.filter(exp => exp._id !== itemToDelete));
+            setSuccessAlertVisible(true);
+        } catch (error) {
+            console.error('Error deleting expense:', error);
+            // We could show an error alert here too, but for now log it
+            // Ideally we'd have an errorAlertVisible state too
+        } finally {
+            setItemToDelete(null);
+        }
     };
 
     const renderExpenseItem = ({ item }) => {
@@ -160,6 +162,28 @@ export default function ExpenseHistory() {
                         colors={[COLORS.primary]}
                     />
                 }
+            />
+
+            {/* Delete Confirmation Alert */}
+            <CustomAlert
+                visible={deleteAlertVisible}
+                title="Delete Expense"
+                message="Are you sure you want to delete this expense?"
+                type="warning"
+                showCancel={true}
+                confirmText="Delete"
+                cancelText="Cancel"
+                onConfirm={confirmDelete}
+                onClose={() => setDeleteAlertVisible(false)}
+            />
+
+            {/* Success Alert */}
+            <CustomAlert
+                visible={successAlertVisible}
+                title="Success"
+                message="Expense deleted successfully"
+                type="success"
+                onClose={() => setSuccessAlertVisible(false)}
             />
         </SafeAreaView>
     );
