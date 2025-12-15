@@ -44,6 +44,20 @@ const jobSchema = new mongoose.Schema(
             type: String,
             trim: true
         },
+        source: {
+            type: String,
+            enum: ['internal', 'onlinejobs.ph'],
+            default: 'internal'
+        },
+        category: {
+            type: String,
+            enum: ['Virtual Assistant', 'Freelance/Remote', 'Part-time', 'Other'],
+            default: 'Other'
+        },
+        externalUrl: {
+            type: String,
+            trim: true
+        },
         isPublished: {
             type: Boolean,
             default: true
