@@ -2,11 +2,11 @@
 ---
 ## Table of Contents
 
-1. [Criteria 1: System Functionalities](#criteria-1-system-functionalities)
-2. [Criteria 2: CRUD Operations](#criteria-2-crud-operations)
-3. [Criteria 3: Data Collections and Model Design](#criteria-3-data-collections-and-model-design)
-4. [Criteria 4: Security and Validation](#criteria-4-security-and-validation)
-5. [Criteria 5: Documentation and Presentation](#criteria-5-documentation-and-presentation)
+1. [1: System Functionalities](#1-system-functionalities)
+2. [2: CRUD Operations](#2-crud-operations)
+3. [3: Data Collections and Model Design](#3-data-collections-and-model-design)
+4. [4: Security and Validation](#4-security-and-validation)
+5. [5: Documentation and Presentation](#5-documentation-and-presentation)
 
 ---
 
