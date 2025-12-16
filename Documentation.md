@@ -25,27 +25,26 @@ BudgetMate is a comprehensive personal finance management mobile application bui
 ### Implemented System Features
 
 #### 1. **User Authentication & Authorization** ✅
-**Description:** Complete user management system with multiple authentication methods.
+**Description:** Complete user management system with email/password authentication.
 
 **Features:**
 - Email/password registration and login
-- Google OAuth 2.0 integration for social login
 - JWT-based stateless authentication
 - Password hashing with bcrypt (10 rounds)
 - Role-based access control (User and Admin roles)
 - Profile management (update name, email, avatar)
-- Password change functionality for email-authenticated users
+- Password change functionality
+- DiceBear avatar generation
 
 **Implementation:**
-- **Backend:** [authRoutes.js](file:///d:/BudgetMate/backend/routes/authRoutes.js) - 350 lines
+- **Backend:** [authRoutes.js](file:///d:/BudgetMate/backend/routes/authRoutes.js)
 - **Frontend:** `mobile/app/auth/` directory
 - **Middleware:** [authMiddleware.js](file:///d:/BudgetMate/backend/middleware/authMiddleware.js)
 - **Model:** [User.js](file:///d:/BudgetMate/backend/models/User.js)
 
 **Key Endpoints:**
 - `POST /api/auth/signup` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/google` - Google OAuth login
+- `POST /api/auth/login` - User login (email or username)
 - `GET /api/auth/me` - Get current user
 - `PUT /api/auth/update-profile` - Update profile
 - `PUT /api/auth/change-password` - Change password
@@ -497,8 +496,7 @@ For detailed schema documentation, see: [Data_Collections_and_Model_Design.md](f
   _id: ObjectId,
   name: String,
   email: String (required, unique),
-  password: String (hashed, null for Google OAuth),
-  googleId: String,
+  password: String (hashed with bcrypt),
   avatarSeed: String,
   role: String (enum: ['user', 'admin'], default: 'user'),
   
